@@ -1,61 +1,61 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class HUDController : MonoBehaviour
 {
-    [Header("Referanslar")]
-    [SerializeField] private Image healthBarFill;
-    [SerializeField] private Text meatText;
-    [SerializeField] private Text moneyText;
+    [Header("Health Bar")]
+    public Image healthBarFill;
 
-    private PlayerHealth playerHealth;
+    [Header("Texts")]
+    public TMP_Text meatText;   // Üstündeki et sayısı
+    public TMP_Text moneyText;  // Para miktarı
 
-    void Start()
+    private int _maxHealth = 1;
+
+    void Awake()
     {
-        // PlayerHealth bul
-        playerHealth = FindFirstObjectByType<PlayerHealth>();
-
-        if (playerHealth == null)
-        {
-            Debug.LogError("[HUDController] PlayerHealth bulunamadı!");
-            return;
-        }
-
-        // Evente abone ol
-        playerHealth.OnHealthChanged += HandleHealthChanged;
-
-        // Başlangıç değeri
-        HandleHealthChanged(playerHealth.CurrentHealth, playerHealth.maxHealth);
+        // Oyuna girer girmez “New Text” yerine temiz başlangıç yazsın
+        SetMeat(0);
+        SetMoney(0);
     }
 
-    void OnDestroy()
+    // -------- CAN --------
+    public void SetMaxHealth(int max)
     {
-        if (playerHealth != null)
-        {
-            playerHealth.OnHealthChanged -= HandleHealthChanged;
-        }
+        _maxHealth = Mathf.Max(1, max);
+
+        if (healthBarFill != null)
+            healthBarFill.fillAmount = 1f;
     }
 
-    private void HandleHealthChanged(float current, float max)
+    public void SetHealth(int current)
     {
         if (healthBarFill == null) return;
 
-        float ratio = (max > 0f) ? current / max : 0f;
-        healthBarFill.fillAmount = ratio;
-        // Debug.Log($"[HUD] HP Ratio: {ratio}");
+        float t = Mathf.Clamp01((float)current / _maxHealth);
+        healthBarFill.fillAmount = t;
     }
 
-    // Et / para için kullandığın update metodları aynen kalabilir,
-    // sadece health kısmını event’e taşıdık.
-    public void UpdateMeatText(int meatCount)
+    // -------- ET --------
+    public void SetMeat(int value)
     {
-        if (meatText != null)
-            meatText.text = meatCount.ToString();
+        if (meatText == null) return;
+
+        // Örn: 🦴 Et: x3   /   🦴 Et yok
+        if (value <= 0)
+            meatText.text = "Et: yok";
+        else
+            meatText.text = $"Et: x{value}";
     }
 
-    public void UpdateMoneyText(int money)
+    // -------- PARA --------
+    public void SetMoney(int value)
     {
-        if (moneyText != null)
-            moneyText.text = money.ToString();
+        if (moneyText == null) return;
+
+        // Binlik ayırıcıyla yaz (1.250 gibi) ve ₺ sembolü ekle
+        string formatted = value.ToString("N0"); // 1250 -> 1.250
+        moneyText.text = $"Para: {formatted} TL";
     }
 }

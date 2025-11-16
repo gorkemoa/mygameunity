@@ -5,22 +5,21 @@ public class EnemyFollow : MonoBehaviour
     [Header("Hareket Ayarları")]
     public float moveSpeed = 3f;
     public float attackRange = 1.3f;
-    public float visionRange = 10f; // Oyuncuyu bu menzilde “fark eder”
+    public float visionRange = 10f;
 
     [Header("Saldırı Ayarları")]
     public float attackCooldown = 1f;
     public int damage = 1;
 
     [Header("Wander Ayarları")]
-    public float wanderRadius = 5f;        // Kendi etrafında ne kadar dolaşsın
-    public float wanderSpeed = 1.5f;       // Dolaşma hızı
-    public float wanderChangeInterval = 3f; // Kaç saniyede bir yeni hedef nokta seçsin
+    public float wanderRadius = 5f;
+    public float wanderSpeed = 1.5f;
+    public float wanderChangeInterval = 3f;
 
     private Transform player;
     private PlayerHealth playerHealth;
     private float lastAttackTime = -999f;
 
-    // Wander için
     private Vector3 wanderCenter;
     private Vector3 wanderTarget;
     private float lastWanderChangeTime;
@@ -35,10 +34,9 @@ public class EnemyFollow : MonoBehaviour
         }
         else
         {
-            Debug.LogError("EnemyFollow: Sahne içinde 'Player' tag'li obje bulunamadı!");
+            Debug.LogError("EnemyFollow: 'Player' tag'li obje bulunamadı!");
         }
 
-        // İlk wander merkezi → doğduğu yer
         wanderCenter = transform.position;
         ChooseNewWanderTarget();
     }
@@ -47,15 +45,12 @@ public class EnemyFollow : MonoBehaviour
     {
         if (player == null)
         {
-            // Oyuncu yoksa sadece wander
             Wander();
             return;
         }
 
         float distance = Vector3.Distance(transform.position, player.position);
 
-        // Oyuncuyu kovalamaya izin var mı?
-        // SafeZone içindeyse veya çok uzaktaysa KOVALAMA → sadece wander
         bool canChasePlayer = !SafeZone.IsPlayerInSafeZone && distance <= visionRange;
 
         if (!canChasePlayer)
@@ -63,8 +58,6 @@ public class EnemyFollow : MonoBehaviour
             Wander();
             return;
         }
-
-        // Bu noktadan sonrası: Oyuncu görüşte ve safezonede değil → chase / attack
 
         if (distance > attackRange)
         {
@@ -76,10 +69,9 @@ public class EnemyFollow : MonoBehaviour
         }
     }
 
-    // --- WANDER (boş boş gezinme davranışı) ---
+    // --- WANDER ---
     void Wander()
     {
-        // Hedefe çok yaklaştıysa veya süre dolduysa yeni hedef seç
         float distToTarget = Vector3.Distance(transform.position, wanderTarget);
         if (distToTarget < 0.3f || Time.time - lastWanderChangeTime > wanderChangeInterval)
         {
@@ -89,23 +81,26 @@ public class EnemyFollow : MonoBehaviour
         Vector3 direction = (wanderTarget - transform.position).normalized;
         direction.y = 0f;
 
-        transform.position += direction * wanderSpeed * Time.deltaTime;
+        Vector3 move = direction * wanderSpeed * Time.deltaTime;
+        MoveIfNotInSafeZone(move);
 
-        // Gideceği yöne dönsün
         if (direction != Vector3.zero)
         {
-            Vector3 lookPos = new Vector3(transform.position.x + direction.x, transform.position.y, transform.position.z + direction.z);
+            Vector3 lookPos = new Vector3(
+                transform.position.x + direction.x,
+                transform.position.y,
+                transform.position.z + direction.z
+            );
             transform.LookAt(lookPos);
         }
     }
 
     void ChooseNewWanderTarget()
     {
-        // wanderCenter etrafında rastgele nokta
         Vector2 circle = Random.insideUnitCircle * wanderRadius;
         wanderTarget = new Vector3(
             wanderCenter.x + circle.x,
-            transform.position.y, // yüksekliği sabit tut
+            transform.position.y,
             wanderCenter.z + circle.y
         );
 
@@ -116,11 +111,11 @@ public class EnemyFollow : MonoBehaviour
     void FollowPlayer()
     {
         Vector3 direction = (player.position - transform.position).normalized;
+        direction.y = 0f;
+
         Vector3 move = direction * moveSpeed * Time.deltaTime;
+        MoveIfNotInSafeZone(move);
 
-        move.y = 0f;
-
-        transform.position += move;
         transform.LookAt(new Vector3(player.position.x, transform.position.y, player.position.z));
     }
 
@@ -134,5 +129,19 @@ public class EnemyFollow : MonoBehaviour
             lastAttackTime = Time.time;
             playerHealth.TakeDamage(damage);
         }
+    }
+
+    // --- GÖRÜNMEZ DUVAR BURADA ---
+    private void MoveIfNotInSafeZone(Vector3 move)
+    {
+        Vector3 newPos = transform.position + move;
+
+        // Eğer bu adım SafeZone'un collider'ının içine sokuyorsa, hareket ETME
+        if (SafeZone.IsPointInside(newPos))
+        {
+            return;
+        }
+
+        transform.position = newPos;
     }
 }

@@ -408,6 +408,7 @@
 -analyzer:"/Applications/Unity/Hub/Editor/6000.2.12f1/Unity.app/Contents/Tools/Unity.SourceGenerators/Unity.Properties.SourceGenerator.dll"
 -analyzer:"/Applications/Unity/Hub/Editor/6000.2.12f1/Unity.app/Contents/Tools/Unity.SourceGenerators/Unity.SourceGenerators.dll"
 -analyzer:"/Applications/Unity/Hub/Editor/6000.2.12f1/Unity.app/Contents/Tools/Unity.SourceGenerators/Unity.UIToolkit.SourceGenerator.dll"
+"Assets/Blink/Art/Animals/Stylized/Demo_Animals/DemoData/AnimationDemo.cs"
 "Assets/Scripts/EnemyFollow.cs"
 "Assets/Scripts/EnemyHealth.cs"
 "Assets/Scripts/EnemySpawner.cs"

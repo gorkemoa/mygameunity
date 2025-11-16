@@ -1,30 +1,49 @@
 using UnityEngine;
-using System;
 
 public class PlayerHealth : MonoBehaviour
 {
-    [Header("Health")]
-    public float maxHealth = 10f;
+    [Header("Health Ayarları")]
+    public int maxHealth = 5;
+    public int currentHealth;
 
-    public float CurrentHealth { get; private set; }
+    [Header("HUD Referansı")]
+    public HUDController hud;
 
-    // current, max
-    public event Action<float, float> OnHealthChanged;
+    [Header("Animasyon")]
+    public Animator anim;   // 👈 HumanMale_Character_FREE animator
 
-    void Awake()
+    void Start()
     {
-        CurrentHealth = maxHealth;
-        OnHealthChanged?.Invoke(CurrentHealth, maxHealth);
+        currentHealth = maxHealth;
+
+        if (hud != null)
+        {
+            hud.SetMaxHealth(maxHealth);
+            hud.SetHealth(currentHealth);
+        }
+
+        if (anim == null)
+        {
+            // Player altındaki animatoru otomatik bul
+            anim = GetComponentInChildren<Animator>();
+        }
     }
 
-    public void TakeDamage(float amount)
+    public void TakeDamage(int amount)
     {
-        CurrentHealth = Mathf.Clamp(CurrentHealth - amount, 0f, maxHealth);
-        Debug.Log($"[PlayerHealth] Damage: {amount} | Current: {CurrentHealth}");
+        currentHealth -= amount;
+        if (currentHealth < 0) currentHealth = 0;
 
-        OnHealthChanged?.Invoke(CurrentHealth, maxHealth);
+        if (hud != null)
+            hud.SetHealth(currentHealth);
 
-        if (CurrentHealth <= 0f)
+        // 🔥 Hasar animasyonu
+        if (anim != null)
+        {
+            anim.SetTrigger("Hit");
+        }
+
+        if (currentHealth <= 0)
         {
             Die();
         }
@@ -32,7 +51,15 @@ public class PlayerHealth : MonoBehaviour
 
     void Die()
     {
-        Debug.Log("[PlayerHealth] Player öldü.");
-        // Şimdilik sadece log, ileride respawn vs. ekleriz
+        Debug.Log("Oyuncu öldü!");
+
+        if (anim != null)
+        {
+            anim.SetTrigger("Die");
+        }
+
+        // İstersen burada hareketi kapat:
+        // GetComponent<PlayerMovement>().enabled = false;
+        // GetComponent<CharacterController>().enabled = false;
     }
 }

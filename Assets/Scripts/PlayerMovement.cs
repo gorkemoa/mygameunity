@@ -4,6 +4,7 @@ using UnityEngine;
 public class PlayerMovement : MonoBehaviour
 {
     public float moveSpeed = 6f;
+    public Animator anim;              // zaten eklemiştik
 
     private CharacterController controller;
     private Camera mainCam;
@@ -16,13 +17,11 @@ public class PlayerMovement : MonoBehaviour
 
     void Update()
     {
-        // Klavyeden giriş al (WASD / ok tuşları)
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
 
         Vector3 input = new Vector3(h, 0f, v).normalized;
 
-        // Kameraya göre yön hesapla
         Vector3 camForward = mainCam.transform.forward;
         camForward.y = 0f;
         camForward.Normalize();
@@ -33,13 +32,23 @@ public class PlayerMovement : MonoBehaviour
 
         Vector3 moveDir = camForward * input.z + camRight * input.x;
 
-        // Hareket + yerçekimi
+        // ANİMASYON SPEED
+        if (anim != null)
+        {
+            anim.SetFloat("Speed", moveDir.magnitude);
+        }
+
+        // 🔥 SALDIRI: Sol mouse veya Space’e basınca
+        if (anim != null && Input.GetKeyDown(KeyCode.Space))
+        {
+            anim.SetTrigger("Attack");
+        }
+
         Vector3 velocity = moveDir * moveSpeed;
         velocity.y = -9.81f;
 
         controller.Move(velocity * Time.deltaTime);
 
-        // Hareket ederken yöne dön
         if (moveDir.sqrMagnitude > 0.001f)
         {
             transform.rotation = Quaternion.Slerp(

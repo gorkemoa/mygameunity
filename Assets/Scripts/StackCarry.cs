@@ -13,7 +13,24 @@ public class StackCarry : MonoBehaviour
     public int moneyPerMeat = 10;        // Her et kaç para ediyor
     public int totalMoney = 0;           // Toplam kazandığın para
 
+    [Header("HUD")]
+    public HUDController hud;            // Canvas'taki HUDController
+
     private int stackCount = 0;
+
+    void Start()
+    {
+        // Oyuna ilk girince “New Text” yerine 0 gözüksün
+        if (hud != null)
+        {
+            hud.SetMeat(stackCount);
+            hud.SetMoney(totalMoney);
+        }
+        else
+        {
+            Debug.LogError("StackCarry: HUDController atanmadı!");
+        }
+    }
 
     void Update()
     {
@@ -26,7 +43,7 @@ public class StackCarry : MonoBehaviour
             if (hit.CompareTag("Meat"))
             {
                 PickUpMeat(hit.gameObject);
-                break; // aynı frame'de 1 tane al, yeter
+                break; // Aynı frame'de 1 tane al, yeter
             }
         }
     }
@@ -49,6 +66,12 @@ public class StackCarry : MonoBehaviour
         );
 
         stackCount++;
+
+        // Et sayısını HUD'de güncelle
+        if (hud != null)
+        {
+            hud.SetMeat(stackCount);
+        }
     }
 
     // TÜM ETLERİ SAT
@@ -71,8 +94,17 @@ public class StackCarry : MonoBehaviour
 
         // Stack sayısını sıfırla
         stackCount = 0;
+
+        // HUD'de et ve parayı güncelle
+        if (hud != null)
+        {
+            hud.SetMeat(stackCount);
+            hud.SetMoney(totalMoney);
+        }
     }
-     public int CurrentStack => stackCount; 
+
+    public int CurrentStack => stackCount;
+
     // Editörde toplama alanını görmek için
     private void OnDrawGizmosSelected()
     {
