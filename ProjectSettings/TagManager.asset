@@ -7,6 +7,7 @@ TagManager:
   - Enemy
   - PlayerAttack
   - Meat
+  - SafeZone
   layers:
   - Default
   - TransparentFX

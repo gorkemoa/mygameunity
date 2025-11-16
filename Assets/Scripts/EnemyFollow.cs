@@ -4,154 +4,135 @@ public class EnemyFollow : MonoBehaviour
 {
     [Header("Hareket Ayarları")]
     public float moveSpeed = 3f;
+    public float attackRange = 1.3f;
+    public float visionRange = 10f; // Oyuncuyu bu menzilde “fark eder”
 
-    [Header("Takip Mesafeleri")]
-    public float detectionRange = 8f;   
-    public float stopChaseRange = 12f;
+    [Header("Saldırı Ayarları")]
+    public float attackCooldown = 1f;
+    public int damage = 1;
 
-    [Header("Vuruş Ayarları")]
-    public int damage = 10;                 // Kaç damage vursun
-    public float attackInterval = 1f;       // Kaç saniyede bir vursun
-    private float lastAttackTime = 0f;
-
-    [Header("Wander (Dolanma)")]
-    public float wanderRadius = 5f;
-    public float wanderChangeInterval = 4f;
-
-    [Header("Referanslar")]
-    public PlayerHealth playerHealth;       // Inspector'dan da atayabilirsin
+    [Header("Wander Ayarları")]
+    public float wanderRadius = 5f;        // Kendi etrafında ne kadar dolaşsın
+    public float wanderSpeed = 1.5f;       // Dolaşma hızı
+    public float wanderChangeInterval = 3f; // Kaç saniyede bir yeni hedef nokta seçsin
 
     private Transform player;
+    private PlayerHealth playerHealth;
+    private float lastAttackTime = -999f;
+
+    // Wander için
     private Vector3 wanderCenter;
     private Vector3 wanderTarget;
-    private float wanderTimer;
-    private bool isChasing = false;
+    private float lastWanderChangeTime;
 
     void Start()
     {
-        // Eğer Inspector'dan atamadıysan otomatik bulmaya çalış
-        if (playerHealth == null)
+        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+        if (playerObj != null)
         {
-            GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-            if (playerObj != null)
-            {
-                // PlayerHealth player'ın child'ında bile olsa bul
-                playerHealth = playerObj.GetComponentInChildren<PlayerHealth>();
-                if (playerHealth == null)
-                {
-                    Debug.LogWarning("EnemyFollow: PlayerHealth bulunamadı! Lütfen Inspector'dan atayın.");
-                }
-            }
+            player = playerObj.transform;
+            playerHealth = playerObj.GetComponent<PlayerHealth>();
+        }
+        else
+        {
+            Debug.LogError("EnemyFollow: Sahne içinde 'Player' tag'li obje bulunamadı!");
         }
 
-        if (playerHealth != null)
-        {
-            player = playerHealth.transform;
-        }
-
-        // Wander başlangıcı
+        // İlk wander merkezi → doğduğu yer
         wanderCenter = transform.position;
-        PickNewWanderTarget();
+        ChooseNewWanderTarget();
     }
 
     void Update()
     {
-        if (player == null) return;
-
-        float distToPlayer = Vector3.Distance(transform.position, player.position);
-
-        // Algılama menziline girdiyse kovala
-        if (distToPlayer <= detectionRange)
+        if (player == null)
         {
-            isChasing = true;
-        }
-
-        if (isChasing)
-        {
-            // Çok uzaklaşırsa kovalamayı bırak
-            if (distToPlayer > stopChaseRange)
-            {
-                isChasing = false;
-                wanderCenter = transform.position;
-                PickNewWanderTarget();
-            }
-            else
-            {
-                ChasePlayer();
-                TryAttack(distToPlayer);   // Vuruş burada
-                return;
-            }
-        }
-
-        // Kovalamıyorsa dolan
-        Wander();
-    }
-
-    void TryAttack(float distToPlayer)
-    {
-        if (playerHealth == null)
-        {
-            // Sadece uyarı ver, her frame spam olmasın diye nadir log istiyorsan burayı yoruma alabilirsin.
-            // Debug.LogWarning("EnemyFollow: PlayerHealth yok, damage veremiyorum.");
+            // Oyuncu yoksa sadece wander
+            Wander();
             return;
         }
 
-        // Yakın mesafede mi? (vuruş mesafesi)
-        if (distToPlayer > 1.3f) return;
+        float distance = Vector3.Distance(transform.position, player.position);
 
-        // SAFE ZONE içindeyse vurma
-        if (SafeZone.IsPlayerInSafeZone)
+        // Oyuncuyu kovalamaya izin var mı?
+        // SafeZone içindeyse veya çok uzaktaysa KOVALAMA → sadece wander
+        bool canChasePlayer = !SafeZone.IsPlayerInSafeZone && distance <= visionRange;
+
+        if (!canChasePlayer)
         {
-            // Debug.Log("Enemy: Player safe zone'da, vurmadım.");
+            Wander();
             return;
         }
 
-        // Attack interval kontrolü
-        if (Time.time - lastAttackTime < attackInterval) return;
+        // Bu noktadan sonrası: Oyuncu görüşte ve safezonede değil → chase / attack
 
-        // Damage ver
-        playerHealth.TakeDamage(damage);
-        lastAttackTime = Time.time;
-
-        Debug.Log("Enemy vurdu! Damage: " + damage + " | Player HP: " + playerHealth.CurrentHealth);
-    }
-
-    void ChasePlayer()
-    {
-        Vector3 dir = (player.position - transform.position);
-        dir.y = 0f;
-
-        if (dir.sqrMagnitude > 0.01f)
+        if (distance > attackRange)
         {
-            Quaternion lookRot = Quaternion.LookRotation(dir);
-            transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, 10f * Time.deltaTime);
-            transform.position += dir.normalized * moveSpeed * Time.deltaTime;
-        }
-    }
-
-    void Wander()
-    {
-        wanderTimer += Time.deltaTime;
-
-        Vector3 flatTarget = new Vector3(wanderTarget.x, transform.position.y, wanderTarget.z);
-        Vector3 dir = flatTarget - transform.position;
-
-        if (dir.magnitude < 0.3f || wanderTimer >= wanderChangeInterval)
-        {
-            PickNewWanderTarget();
+            FollowPlayer();
         }
         else
         {
-            Quaternion lookRot = Quaternion.LookRotation(dir);
-            transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, 5f * Time.deltaTime);
-            transform.position += dir.normalized * (moveSpeed * 0.5f) * Time.deltaTime;
+            TryAttack();
         }
     }
 
-    void PickNewWanderTarget()
+    // --- WANDER (boş boş gezinme davranışı) ---
+    void Wander()
     {
-        wanderTimer = 0f;
+        // Hedefe çok yaklaştıysa veya süre dolduysa yeni hedef seç
+        float distToTarget = Vector3.Distance(transform.position, wanderTarget);
+        if (distToTarget < 0.3f || Time.time - lastWanderChangeTime > wanderChangeInterval)
+        {
+            ChooseNewWanderTarget();
+        }
+
+        Vector3 direction = (wanderTarget - transform.position).normalized;
+        direction.y = 0f;
+
+        transform.position += direction * wanderSpeed * Time.deltaTime;
+
+        // Gideceği yöne dönsün
+        if (direction != Vector3.zero)
+        {
+            Vector3 lookPos = new Vector3(transform.position.x + direction.x, transform.position.y, transform.position.z + direction.z);
+            transform.LookAt(lookPos);
+        }
+    }
+
+    void ChooseNewWanderTarget()
+    {
+        // wanderCenter etrafında rastgele nokta
         Vector2 circle = Random.insideUnitCircle * wanderRadius;
-        wanderTarget = wanderCenter + new Vector3(circle.x, 0f, circle.y);
+        wanderTarget = new Vector3(
+            wanderCenter.x + circle.x,
+            transform.position.y, // yüksekliği sabit tut
+            wanderCenter.z + circle.y
+        );
+
+        lastWanderChangeTime = Time.time;
+    }
+
+    // --- PLAYER TAKİBİ ---
+    void FollowPlayer()
+    {
+        Vector3 direction = (player.position - transform.position).normalized;
+        Vector3 move = direction * moveSpeed * Time.deltaTime;
+
+        move.y = 0f;
+
+        transform.position += move;
+        transform.LookAt(new Vector3(player.position.x, transform.position.y, player.position.z));
+    }
+
+    // --- SALDIRI ---
+    void TryAttack()
+    {
+        if (playerHealth == null) return;
+
+        if (Time.time - lastAttackTime >= attackCooldown)
+        {
+            lastAttackTime = Time.time;
+            playerHealth.TakeDamage(damage);
+        }
     }
 }

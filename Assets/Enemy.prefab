@@ -107,7 +107,7 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
@@ -126,9 +126,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyFollow
   moveSpeed: 3
-  attackRange: 1.3
-  attackCooldown: 1
+  detectionRange: 8
+  stopChaseRange: 12
   damage: 1
+  attackInterval: 1
+  wanderRadius: 5
+  wanderChangeInterval: 4
+  playerHealth: {fileID: 0}
 --- !u!114 &3749032125863533586
 MonoBehaviour:
   m_ObjectHideFlags: 0
