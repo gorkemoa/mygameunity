@@ -1,32 +1,61 @@
 using UnityEngine;
-using TMPro;   // 🔹 ÖNEMLİ: TextMeshPro için
+using UnityEngine.UI;
 
 public class HUDController : MonoBehaviour
 {
     [Header("Referanslar")]
-    public StackCarry stackCarry;    // Player'daki StackCarry
-    public TMP_Text meatText;        // Et yazısı
-    public TMP_Text moneyText;       // Para yazısı
+    [SerializeField] private Image healthBarFill;
+    [SerializeField] private Text meatText;
+    [SerializeField] private Text moneyText;
 
-    private void Awake()
+    private PlayerHealth playerHealth;
+
+    void Start()
     {
-        // StackCarry inspector'dan atanmadıysa sahneden bul
-        if (stackCarry == null)
+        // PlayerHealth bul
+        playerHealth = FindFirstObjectByType<PlayerHealth>();
+
+        if (playerHealth == null)
         {
-            stackCarry = FindObjectOfType<StackCarry>();
-            if (stackCarry == null)
-            {
-                Debug.LogError("[HUD] StackCarry bulunamadı.");
-            }
+            Debug.LogError("[HUDController] PlayerHealth bulunamadı!");
+            return;
+        }
+
+        // Evente abone ol
+        playerHealth.OnHealthChanged += HandleHealthChanged;
+
+        // Başlangıç değeri
+        HandleHealthChanged(playerHealth.CurrentHealth, playerHealth.maxHealth);
+    }
+
+    void OnDestroy()
+    {
+        if (playerHealth != null)
+        {
+            playerHealth.OnHealthChanged -= HandleHealthChanged;
         }
     }
 
-    private void Update()
+    private void HandleHealthChanged(float current, float max)
     {
-        if (stackCarry == null || meatText == null || moneyText == null)
-            return;
+        if (healthBarFill == null) return;
 
-        meatText.text = $"Et: {stackCarry.CurrentStack}/{stackCarry.maxStack}";
-        moneyText.text = $"Para: {stackCarry.totalMoney}";
+        float ratio = (max > 0f) ? current / max : 0f;
+        healthBarFill.fillAmount = ratio;
+        // Debug.Log($"[HUD] HP Ratio: {ratio}");
+    }
+
+    // Et / para için kullandığın update metodları aynen kalabilir,
+    // sadece health kısmını event’e taşıdık.
+    public void UpdateMeatText(int meatCount)
+    {
+        if (meatText != null)
+            meatText.text = meatCount.ToString();
+    }
+
+    public void UpdateMoneyText(int money)
+    {
+        if (moneyText != null)
+            moneyText.text = money.ToString();
     }
 }
